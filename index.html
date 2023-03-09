@@ -120,9 +120,10 @@
             zoom: 3.4,
             projection: 'mercator'
         });
+      
 
         map.on('load', () => {
-
+            map.setPaintProperty("water", 'fill-color', "#7fbfd5");
             // Add a GeoJSON source containing place coordinates and information.
             d3.csv('https://docs.google.com/spreadsheets/d/e/2PACX-1vQQqdLucVXFWuCyhoyC942qdLtjh9dBwZNzMF4oyRzo46h0-dyGpSogTzCiZZpFCBXD7RWXzLPWzBF2/pub?output=csv')
                 .then((result) => {
