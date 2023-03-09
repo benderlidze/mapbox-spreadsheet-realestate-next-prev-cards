@@ -10,11 +10,14 @@
     <script src="https://d3js.org/d3.v7.min.js"></script>
     <!-- add turfjs -->
     <script src="https://cdn.jsdelivr.net/npm/@turf/turf@6/turf.min.js"></script>
+    <link href='https://fonts.googleapis.com/css?family=Raleway' rel='stylesheet'>
 
     <style>
         body {
             margin: 0;
             padding: 0;
+            font-family: 'Raleway';
+            font-size: 22px;
         }
 
         #map {
@@ -24,9 +27,14 @@
             width: 100%;
         }
 
+        .main {
+            display: flex;
+            flex-direction: column;
+        }
+
         .img {
-            width: 150px;
-            height: 150px;
+            width: 13rem;
+            height: 13rem;
         }
 
         .top {
@@ -34,19 +42,63 @@
         }
 
         .right {
-            padding: 10px;
+            padding: 1rem;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
         }
 
         .mapboxgl-popup-content {
             padding: 0px;
-            min-width: 400px;
+            font-family: Raleway;
         }
 
         .title {
-            font-size: 20px;
+            font-size: 1.5rem;
+            font-weight: bold;
+            padding-bottom: 1rem;
+        }
+
+        .address {
+            font-size: 1.1rem;
             font-weight: bold;
         }
-        
+
+        .description {
+            padding: 10px 0px
+        }
+
+        .link {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-end;
+        }
+
+
+        .buttons {
+            background-color: #eee;
+            display: flex;
+            height: 50px;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .buttons>div {
+            padding: 0px 30px;
+            font-size: 1rem;
+        }
+
+        .buttons>div.prev,
+        .buttons>div.next {
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .popup-div {
+            width: 500px !important;
+            max-width: 500px !important;
+        }
     </style>
 </head>
 
@@ -55,9 +107,9 @@
     <script>
 
         const mainData = {
-            pins: []
+            pins: [],
+            currentPinId: 0
         };
-        Object.freeze(mainData);
 
         mapboxgl.accessToken = 'pk.eyJ1Ijoic3VqYW5jaGFrcmFib3J0eSIsImEiOiJja2Q5MzBuc3owenplMnBzY2I0eDYwdDhvIn0.imItePLDlYNF2BGVde_mkw';
         const map = new mapboxgl.Map({
@@ -75,16 +127,18 @@
             d3.csv('https://docs.google.com/spreadsheets/d/e/2PACX-1vQQqdLucVXFWuCyhoyC942qdLtjh9dBwZNzMF4oyRzo46h0-dyGpSogTzCiZZpFCBXD7RWXzLPWzBF2/pub?output=csv')
                 .then((result) => {
                     console.log(result);
-                    const pins = result.map((item) => {
-                        return {
-                            type: 'Feature',
-                            geometry: {
-                                type: 'Point',
-                                coordinates: [item.Longitude, +item.Latitude]
-                            },
-                            properties: { ...item }
-                        }
-                    });
+                    const pins = result
+                        .sort((a, b) => a.Order - b.Order)
+                        .map((item) => {
+                            return {
+                                type: 'Feature',
+                                geometry: {
+                                    type: 'Point',
+                                    coordinates: [+item.Longitude, +item.Latitude]
+                                },
+                                properties: { ...item }
+                            }
+                        });
                     mainData.pins.push(...pins);
                     const featureCollection = {
                         type: 'FeatureCollection',
@@ -106,25 +160,28 @@
                 'type': 'circle',
                 'source': 'points',
                 'paint': {
-                    'circle-color': '#4264fb',
+                    'circle-color': '#457b95',
                     'circle-radius': 8,
                     'circle-stroke-width': 2,
-                    'circle-stroke-color': '#ffffff'
+                    'circle-stroke-color': 'orange'
                 }
+            });
+
+            let popup = new mapboxgl.Popup({
+                closeOnClick: false,
+                offset: [0, -10],
+                className: "popup-div"
             });
 
             // Center the map on the coordinates of any clicked circle from the 'circle' layer.
             map.on('click', 'circle', (e) => {
-                // map.flyTo({
-                //     center: e.features[0].geometry.coordinates
-                // });
+                map.flyTo({
+                    center: e.features[0].geometry.coordinates
+                });
 
                 const coordinates = e.features[0].geometry.coordinates.slice();
                 const props = e.features[0].properties;
-
-                while (Math.abs(e.lngLat.lng - coordinates[0]) > 180) {
-                    coordinates[0] += e.lngLat.lng > coordinates[0] ? 360 : -360;
-                }
+                mainData.currentPinId = +props['Order'];
 
                 const description = `
                     <div class="main">    
@@ -133,7 +190,8 @@
                                 <img class="img" src="https://img.staticmb.com/mbcontent//images/uploads/2022/12/Most-Beautiful-House-in-the-World.jpg" alt="image">
                             </div>
                             <div class="right">
-                                <div class="title">${props['Development']}</div>
+                                <div class="title">${props['Development']} ${props['Order']}</div>
+                                <div class="address">${props['Area']}</div>
                                 <div class="address">${props['Address']}</div>
                                 <div class="description">${props['Description']}</div>
                                 <div class="link">
@@ -142,15 +200,13 @@
                             </div>
                         </div>
                         <div class="buttons">
-                            <div class="prev">Previous</>
+                            <div class="prev">&lt; Previous</div>
                             <div class="counter"> 1 of 2 </div>
-                            <div class="next">Next Property</div>
+                            <div class="next">Next Property &gt;</div>
                         </div>
                     </div>
                 `
-
-                new mapboxgl.Popup({ offset: [0, -10], className: 'popup' })
-                    .setLngLat(coordinates)
+                popup.setLngLat(coordinates)
                     .setHTML(description)
                     .addTo(map);
             });
@@ -164,7 +220,46 @@
             map.on('mouseleave', 'circle', () => {
                 map.getCanvas().style.cursor = '';
             });
+
+            document.addEventListener("click", e => {
+                console.log('e', e);
+
+                const max = mainData.pins.map(p => p.properties.Order).reduce((a, b) => Math.max(a, b));
+                const min = mainData.pins.map(p => p.properties.Order).reduce((a, b) => Math.min(a, b));
+
+                const prev = mainData.currentPinId - 1 <= 0 ? max : mainData.currentPinId - 1
+                const next = mainData.currentPinId + 1 > max ? min : mainData.currentPinId + 1
+
+                const prevPin = mainData.pins.find(pin => pin.properties.Order === String(prev))
+                const nextPin = mainData.pins.find(pin => pin.properties.Order === String(next))
+
+                console.log('prev, next', prev, mainData.currentPinId, next);
+
+                let coords = null;
+                if (e.target.classList.contains('prev')) {
+                    coords = prevPin.geometry.coordinates;
+
+                }
+                if (e.target.classList.contains('next')) {
+                    coords = nextPin.geometry.coordinates;
+                }
+                if (coords) {
+                    console.log('fire');
+                    console.log('coords', prevPin);
+
+                    popup.remove();
+                    map.flyTo({
+                        center: coords
+                    });
+                    map.once("idle", () => {
+                        map.fire('click', { latLng: coords, point: map.project(coords) })
+                    });
+
+                }
+            })
         });
+
+
     </script>
 
 </body>
