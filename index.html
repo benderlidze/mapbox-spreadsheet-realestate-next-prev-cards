@@ -51,6 +51,12 @@
         .mapboxgl-popup-content {
             padding: 0px;
             font-family: Raleway;
+            box-shadow: 0 1px 20px rgba(0, 0, 0, 0.3);
+        }
+
+        .mapboxgl-popup-anchor-bottom .mapboxgl-popup-tip {
+            border-top-color: #eeeeee !important;
+            filter: drop-shadow(1px 3px 2px rgba(0, 0, 0, .5));
         }
 
         .title {
@@ -120,7 +126,7 @@
             zoom: 3.4,
             projection: 'mercator'
         });
-      
+
 
         map.on('load', () => {
             map.setPaintProperty("water", 'fill-color', "#7fbfd5");
@@ -231,13 +237,13 @@
                     });
                     map.once("idle", () => {
                         // map.fire('click', { latLng: coords, point: map.project(coords) })
-                        openPopupAt(coords, props)
+                        openPopupAt(coords, props, mainData.currentPinId, mainData.pins.length)
                     });
 
                 }
             })
 
-            function openPopupAt(coordinates, props) {
+            function openPopupAt(coordinates, props, curNumber, allNumber) {
                 mainData.currentPinId = +props['Order'];
                 const description = `
                     <div class="main">    
@@ -246,7 +252,7 @@
                                 <img class="img" src="https://img.staticmb.com/mbcontent//images/uploads/2022/12/Most-Beautiful-House-in-the-World.jpg" alt="image">
                             </div>
                             <div class="right">
-                                <div class="title">${props['Development']} ${props['Order']}</div>
+                                <div class="title">${props['Development']}</div>
                                 <div class="address">${props['Area']}</div>
                                 <div class="address">${props['Address']}</div>
                                 <div class="description">${props['Description']}</div>
@@ -257,7 +263,7 @@
                         </div>
                         <div class="buttons">
                             <div class="prev">&lt; Previous</div>
-                            <div class="counter"> 1 of 2 </div>
+                            <div class="counter"> ${props['Order']} of ${mainData.pins.length} </div>
                             <div class="next">Next Property &gt;</div>
                         </div>
                     </div>
