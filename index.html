@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <title>Center the map on a clicked feature</title>
+    <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no">
+    <link href="https://api.mapbox.com/mapbox-gl-js/v2.13.0/mapbox-gl.css" rel="stylesheet">
+    <script src="https://api.mapbox.com/mapbox-gl-js/v2.13.0/mapbox-gl.js"></script>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <!-- add turfjs -->
+    <script src="https://cdn.jsdelivr.net/npm/@turf/turf@6/turf.min.js"></script>
+
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+        }
+
+        #map {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            width: 100%;
+        }
+
+        .img {
+            width: 150px;
+            height: 150px;
+        }
+
+        .top {
+            display: flex;
+        }
+
+        .right {
+            padding: 10px;
+        }
+
+        .mapboxgl-popup-content {
+            padding: 0px;
+            min-width: 400px;
+        }
+
+        .title {
+            font-size: 20px;
+            font-weight: bold;
+        }
+        
+    </style>
+</head>
+
+<body>
+    <div id="map"></div>
+    <script>
+
+        const mainData = {
+            pins: []
+        };
+        Object.freeze(mainData);
+
+        mapboxgl.accessToken = 'pk.eyJ1Ijoic3VqYW5jaGFrcmFib3J0eSIsImEiOiJja2Q5MzBuc3owenplMnBzY2I0eDYwdDhvIn0.imItePLDlYNF2BGVde_mkw';
+        const map = new mapboxgl.Map({
+            container: 'map',
+            // Choose from Mapbox's core styles, or make your own style with Mapbox Studio
+            style: 'mapbox://styles/mapbox/light-v11',
+            center: { lng: -126.55188026468191, lat: 51.1029132262089 },
+            zoom: 3.4,
+            projection: 'mercator'
+        });
+
+        map.on('load', () => {
+
+            // Add a GeoJSON source containing place coordinates and information.
+            d3.csv('https://docs.google.com/spreadsheets/d/e/2PACX-1vQQqdLucVXFWuCyhoyC942qdLtjh9dBwZNzMF4oyRzo46h0-dyGpSogTzCiZZpFCBXD7RWXzLPWzBF2/pub?output=csv')
+                .then((result) => {
+                    console.log(result);
+                    const pins = result.map((item) => {
+                        return {
+                            type: 'Feature',
+                            geometry: {
+                                type: 'Point',
+                                coordinates: [item.Longitude, +item.Latitude]
+                            },
+                            properties: { ...item }
+                        }
+                    });
+                    mainData.pins.push(...pins);
+                    const featureCollection = {
+                        type: 'FeatureCollection',
+                        features: mainData.pins
+                    }
+                    map.getSource("points").setData(featureCollection);
+                    map.fitBounds(turf.bbox(featureCollection), { padding: 100 });
+                })
+
+            map.addSource('points', {
+                'type': 'geojson',
+                'data': {
+                    'type': 'FeatureCollection',
+                    'features': []
+                }
+            });
+            map.addLayer({
+                'id': 'circle',
+                'type': 'circle',
+                'source': 'points',
+                'paint': {
+                    'circle-color': '#4264fb',
+                    'circle-radius': 8,
+                    'circle-stroke-width': 2,
+                    'circle-stroke-color': '#ffffff'
+                }
+            });
+
+            // Center the map on the coordinates of any clicked circle from the 'circle' layer.
+            map.on('click', 'circle', (e) => {
+                // map.flyTo({
+                //     center: e.features[0].geometry.coordinates
+                // });
+
+                const coordinates = e.features[0].geometry.coordinates.slice();
+                const props = e.features[0].properties;
+
+                while (Math.abs(e.lngLat.lng - coordinates[0]) > 180) {
+                    coordinates[0] += e.lngLat.lng > coordinates[0] ? 360 : -360;
+                }
+
+                const description = `
+                    <div class="main">    
+                        <div class="top">
+                            <div class="left">
+                                <img class="img" src="https://img.staticmb.com/mbcontent//images/uploads/2022/12/Most-Beautiful-House-in-the-World.jpg" alt="image">
+                            </div>
+                            <div class="right">
+                                <div class="title">${props['Development']}</div>
+                                <div class="address">${props['Address']}</div>
+                                <div class="description">${props['Description']}</div>
+                                <div class="link">
+                                    <a href="${props['More Info Link']}" target="_blank">More Info</a>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="buttons">
+                            <div class="prev">Previous</>
+                            <div class="counter"> 1 of 2 </div>
+                            <div class="next">Next Property</div>
+                        </div>
+                    </div>
+                `
+
+                new mapboxgl.Popup({ offset: [0, -10], className: 'popup' })
+                    .setLngLat(coordinates)
+                    .setHTML(description)
+                    .addTo(map);
+            });
+
+            // Change the cursor to a pointer when the it enters a feature in the 'circle' layer.
+            map.on('mouseenter', 'circle', () => {
+                map.getCanvas().style.cursor = 'pointer';
+            });
+
+            // Change it back to a pointer when it leaves.
+            map.on('mouseleave', 'circle', () => {
+                map.getCanvas().style.cursor = '';
+            });
+        });
+    </script>
+
+</body>
+
+</html>
