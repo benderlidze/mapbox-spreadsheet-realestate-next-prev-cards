@@ -126,8 +126,8 @@
             container: 'map',
             // Choose from Mapbox's core styles, or make your own style with Mapbox Studio
             style: 'mapbox://styles/mapbox/light-v11',
-            center: { lng: -126.55188026468191, lat: 51.1029132262089 },
-            zoom: 3.4,
+            center: { lng: -123.47218081040816, lat: 48.49533424172924 },
+            zoom: 10,
             projection: 'mercator'
         });
 
@@ -156,7 +156,7 @@
                         features: mainData.pins
                     }
                     map.getSource("points").setData(featureCollection);
-                    map.fitBounds(turf.bbox(featureCollection), { padding: 100 });
+                    // map.fitBounds(turf.bbox(featureCollection), { padding: 100 });
                 })
 
             map.addSource('points', {
@@ -164,8 +164,41 @@
                 'data': {
                     'type': 'FeatureCollection',
                     'features': []
+                },
+                cluster: true,
+                clusterMaxZoom: 14, // Max zoom to cluster points on
+                clusterRadius: 50
+            });
+
+            map.addLayer({
+                id: 'clusters',
+                type: 'circle',
+                source: 'points',
+                filter: ['has', 'point_count'],
+                paint: {
+                    'circle-color': 'orange',
+                    'circle-radius': 20,
+                    'circle-stroke-width': 4,
+                    'circle-stroke-color': '#457b95'
                 }
             });
+
+            map.addLayer({
+                id: 'cluster-count',
+                type: 'symbol',
+                source: 'points',
+                filter: ['has', 'point_count'],
+                layout: {
+                    'text-field': ['get', 'point_count_abbreviated'],
+                    'text-font': ['DIN Offc Pro Medium', 'Arial Unicode MS Bold'],
+                    'text-size': 15,
+
+                },
+                paint: {
+                    "text-color": "black"
+                }
+            });
+
             map.addLayer({
                 'id': 'circle',
                 'type': 'circle',
@@ -175,7 +208,8 @@
                     'circle-radius': 8,
                     'circle-stroke-width': 2,
                     'circle-stroke-color': '#457b95'
-                }
+                },
+                filter: ['!', ['has', 'point_count']],
             });
 
             let popup = new mapboxgl.Popup({
@@ -249,12 +283,16 @@
 
             function openPopupAt(coordinates, props, curNumber, allNumber) {
                 mainData.currentPinId = +props['Order'];
+
+                const image = props['Image Link'] ?
+                    `<div class="left">
+                        <img class="img" src="${props['Image Link']}" alt="image">
+                    </div>` : '';
+
                 const description = `
                     <div class="main">    
                         <div class="top">
-                            <div class="left">
-                                <img class="img" src="https://img.staticmb.com/mbcontent//images/uploads/2022/12/Most-Beautiful-House-in-the-World.jpg" alt="image">
-                            </div>
+                            ${image}
                             <div class="right">
                                 <div class="title">${props['Development']}</div>
                                 <div class="address">${props['Area']}</div>
