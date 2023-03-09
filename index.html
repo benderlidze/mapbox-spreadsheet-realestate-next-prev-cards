@@ -231,12 +231,34 @@
 
             });
 
-            // Change the cursor to a pointer when the it enters a feature in the 'circle' layer.
+            // inspect a cluster on click
+            map.on('click', 'clusters', (e) => {
+                const features = map.queryRenderedFeatures(e.point, {
+                    layers: ['clusters']
+                });
+                const clusterId = features[0].properties.cluster_id;
+                map.getSource('points').getClusterExpansionZoom(
+                    clusterId,
+                    (err, zoom) => {
+                        if (err) return;
+
+                        map.easeTo({
+                            center: features[0].geometry.coordinates,
+                            zoom: zoom
+                        });
+                    }
+                );
+            });
+
+            map.on('mouseenter', 'clusters', () => {
+                map.getCanvas().style.cursor = 'pointer';
+            });
+            map.on('mouseleave', 'clusters', () => {
+                map.getCanvas().style.cursor = '';
+            });
             map.on('mouseenter', 'circle', () => {
                 map.getCanvas().style.cursor = 'pointer';
             });
-
-            // Change it back to a pointer when it leaves.
             map.on('mouseleave', 'circle', () => {
                 map.getCanvas().style.cursor = '';
             });
