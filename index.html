@@ -181,8 +181,63 @@
 
                 const coordinates = e.features[0].geometry.coordinates.slice();
                 const props = e.features[0].properties;
-                mainData.currentPinId = +props['Order'];
+                console.log('coordinates', coordinates);
+                openPopupAt(coordinates, props)
 
+            });
+
+            // Change the cursor to a pointer when the it enters a feature in the 'circle' layer.
+            map.on('mouseenter', 'circle', () => {
+                map.getCanvas().style.cursor = 'pointer';
+            });
+
+            // Change it back to a pointer when it leaves.
+            map.on('mouseleave', 'circle', () => {
+                map.getCanvas().style.cursor = '';
+            });
+
+            document.addEventListener("click", e => {
+                console.log('e', e);
+                if (mainData.pins.length === 0) return;
+                const max = mainData.pins.map(p => p.properties.Order).reduce((a, b) => Math.max(a, b));
+                const min = mainData.pins.map(p => p.properties.Order).reduce((a, b) => Math.min(a, b));
+
+                const prev = mainData.currentPinId - 1 <= 0 ? max : mainData.currentPinId - 1
+                const next = mainData.currentPinId + 1 > max ? min : mainData.currentPinId + 1
+
+                const prevPin = mainData.pins.find(pin => pin.properties.Order === String(prev))
+                const nextPin = mainData.pins.find(pin => pin.properties.Order === String(next))
+
+                console.log('prev, next', prev, mainData.currentPinId, next);
+
+                let coords = null;
+                let props = null;
+                if (e.target.classList.contains('prev')) {
+                    coords = prevPin.geometry.coordinates;
+                    props = prevPin.properties;
+                }
+                if (e.target.classList.contains('next')) {
+                    coords = nextPin.geometry.coordinates;
+                    props = nextPin.properties;
+                }
+                if (coords) {
+                    console.log('fire');
+                    console.log('coords', prevPin);
+
+                    popup.remove();
+                    map.flyTo({
+                        center: coords
+                    });
+                    map.once("idle", () => {
+                        // map.fire('click', { latLng: coords, point: map.project(coords) })
+                        openPopupAt(coords, props)
+                    });
+
+                }
+            })
+
+            function openPopupAt(coordinates, props) {
+                mainData.currentPinId = +props['Order'];
                 const description = `
                     <div class="main">    
                         <div class="top">
@@ -209,54 +264,7 @@
                 popup.setLngLat(coordinates)
                     .setHTML(description)
                     .addTo(map);
-            });
-
-            // Change the cursor to a pointer when the it enters a feature in the 'circle' layer.
-            map.on('mouseenter', 'circle', () => {
-                map.getCanvas().style.cursor = 'pointer';
-            });
-
-            // Change it back to a pointer when it leaves.
-            map.on('mouseleave', 'circle', () => {
-                map.getCanvas().style.cursor = '';
-            });
-
-            document.addEventListener("click", e => {
-                console.log('e', e);
-
-                const max = mainData.pins.map(p => p.properties.Order).reduce((a, b) => Math.max(a, b));
-                const min = mainData.pins.map(p => p.properties.Order).reduce((a, b) => Math.min(a, b));
-
-                const prev = mainData.currentPinId - 1 <= 0 ? max : mainData.currentPinId - 1
-                const next = mainData.currentPinId + 1 > max ? min : mainData.currentPinId + 1
-
-                const prevPin = mainData.pins.find(pin => pin.properties.Order === String(prev))
-                const nextPin = mainData.pins.find(pin => pin.properties.Order === String(next))
-
-                console.log('prev, next', prev, mainData.currentPinId, next);
-
-                let coords = null;
-                if (e.target.classList.contains('prev')) {
-                    coords = prevPin.geometry.coordinates;
-
-                }
-                if (e.target.classList.contains('next')) {
-                    coords = nextPin.geometry.coordinates;
-                }
-                if (coords) {
-                    console.log('fire');
-                    console.log('coords', prevPin);
-
-                    popup.remove();
-                    map.flyTo({
-                        center: coords
-                    });
-                    map.once("idle", () => {
-                        map.fire('click', { latLng: coords, point: map.project(coords) })
-                    });
-
-                }
-            })
+            }
         });
 
 
