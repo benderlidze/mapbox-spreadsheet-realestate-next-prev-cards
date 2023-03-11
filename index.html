@@ -103,22 +103,124 @@
         .buttons>div {
             padding: 0px 30px;
             font-size: 1rem;
+            white-space: nowrap;
         }
 
         .buttons>div.prev,
         .buttons>div.next {
             cursor: pointer;
             user-select: none;
+            white-space: nowrap;
         }
 
         .popup-div {
             width: 500px !important;
             max-width: 500px !important;
         }
+
+        #switchers {
+            position: absolute;
+            background-color: white;
+            left: 10px;
+            z-index: 20000;
+            top: 45px;
+            font-size: 12px;
+            padding: 5px 12px;
+            border-radius: 10px;
+        }
+
+        #switchers div {
+            margin: 5px;
+        }
+
+        .switcher-div {
+            display: flex;
+            align-items: center;
+        }
+
+        .switcher-div>span {
+            padding-left: 10px;
+        }
+
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 35px;
+            height: 15px;
+        }
+
+        .switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ccc;
+            -webkit-transition: 0.4s;
+            transition: 0.4s;
+        }
+
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 11px;
+            width: 11px;
+            left: 3px;
+            bottom: 2px;
+            background-color: white;
+            -webkit-transition: 0.4s;
+            transition: 0.4s;
+        }
+
+        input:checked+.slider {
+            background-color: #2196f3;
+        }
+
+        input:focus+.slider {
+            box-shadow: 0 0 1px #2196f3;
+        }
+
+        input:checked+.slider:before {
+            -webkit-transform: translateX(18px);
+            -ms-transform: translateX(18px);
+            transform: translateX(18px);
+        }
+
+        /* Rounded sliders */
+        .slider.round {
+            border-radius: 34px;
+        }
+
+        .slider.round:before {
+            border-radius: 50%;
+        }
+
+        @media screen and (max-width: 768px) {
+            .top {
+                flex-direction: column;
+            }
+
+            .popup-div {
+                width: 90% !important;
+                max-width: 400px !important;
+            }
+
+            .buttons>div {
+                padding: 0px 10px;
+            }
+        }
     </style>
 </head>
 
 <body>
+    <div id="switchers"></div>
     <div id="map"></div>
     <script>
 
@@ -136,10 +238,29 @@
             zoom: 10,
             projection: 'mercator'
         });
-
+        //add controls
+        map.addControl(new mapboxgl.NavigationControl());
 
         map.on('load', () => {
+
+            //add satellite layer 
+            map.addSource('satellite', {
+                type: 'raster',
+                tiles: ['https://api.mapbox.com/v4/mapbox.satellite/{z}/{x}/{y}.png?access_token=' + mapboxgl.accessToken],
+                tileSize: 256
+            });
+            map.addLayer({
+                'id': 'satellite',
+                'type': 'raster',
+                'source': 'satellite',
+                'layout': {
+                    'visibility': 'none'
+                }
+            });
+
+            map.setPaintProperty("land", 'background-color', "#eaeaec");
             map.setPaintProperty("water", 'fill-color', "#7fbfd5");
+
             // Add a GeoJSON source containing place coordinates and information.
             d3.csv('https://docs.google.com/spreadsheets/d/e/2PACX-1vQQqdLucVXFWuCyhoyC942qdLtjh9dBwZNzMF4oyRzo46h0-dyGpSogTzCiZZpFCBXD7RWXzLPWzBF2/pub?output=csv')
                 .then((result) => {
@@ -225,16 +346,15 @@
             });
 
             // Center the map on the coordinates of any clicked circle from the 'circle' layer.
+            map.on('click', (e) => {
+                console.log('e', e);
+            })
             map.on('click', 'circle', (e) => {
-                map.flyTo({
-                    center: e.features[0].geometry.coordinates
-                });
 
                 const coordinates = e.features[0].geometry.coordinates.slice();
                 const props = e.features[0].properties;
-                console.log('coordinates', coordinates);
-                openPopupAt(coordinates, props)
 
+                openPopupAt(coordinates, props)
             });
 
             // inspect a cluster on click
@@ -298,20 +418,13 @@
                     console.log('coords', prevPin);
 
                     popup.remove();
-                    map.flyTo({
-                        center: coords
-                    });
-                    map.once("idle", () => {
-                        // map.fire('click', { latLng: coords, point: map.project(coords) })
-                        openPopupAt(coords, props, mainData.currentPinId, mainData.pins.length)
-                    });
-
+                    openPopupAt(coords, props, mainData.currentPinId, mainData.pins.length)
                 }
             })
 
             function openPopupAt(coordinates, props, curNumber, allNumber) {
-                mainData.currentPinId = +props['Order'];
 
+                mainData.currentPinId = +props['Order'];
                 const image = props['Image Link'] ?
                     `<div class="left">
                         <img class="img" src="${props['Image Link']}" alt="image">
@@ -338,12 +451,71 @@
                         </div>
                     </div>
                 `
-                popup.setLngLat(coordinates)
-                    .setHTML(description)
-                    .addTo(map);
+
+                let coords = coordinates
+                const narrowScreen = map.getContainer().offsetWidth < 600;
+
+                if (narrowScreen) {
+                    const mapHeight = map.getContainer().offsetHeight;
+                    const offsetPx = mapHeight / 2 + 50;
+                    const centerCoord = coordinates;
+                    const centerPx = map.project(centerCoord);
+                    const newPx = { x: centerPx.x, y: centerPx.y - (mapHeight - offsetPx) };
+                    const newCoord = map.unproject(newPx);
+                    coords = newCoord;
+                }
+
+                map.flyTo({
+                    center: coords // move to new coordinates
+                });
+                map.once("idle", () => {
+                    popup.setLngLat(coordinates) // popup at old coordinates
+                        .setHTML(description)
+                        .addTo(map);
+                });
             }
         });
 
+
+        const mapboxOffSwitcher = buildSwitcher('Satellite view', checked => {
+            const visibility = checked ? 'visible' : 'none'
+            map.setLayoutProperty('satellite', 'visibility', visibility)
+        },
+            false,
+            'off-map'
+        )
+        switchers.append(mapboxOffSwitcher.div)
+
+        function buildSwitcher(labelText, action, checked = true, divid) {
+            const div = document.createElement('div')
+            div.className = 'switcher-div'
+            div.id = divid
+            const label = document.createElement('label')
+            label.className = 'switch'
+
+            const checkbox = document.createElement('input')
+            checkbox.type = 'checkbox'
+            checkbox.checked = checked
+            checkbox.addEventListener('input', () => {
+                if (typeof action === 'function') {
+                    action(checkbox.checked)
+                }
+            })
+
+            const span = document.createElement('span')
+            span.className = 'slider round'
+
+            const text = document.createElement('span')
+            text.innerText = labelText
+
+            label.appendChild(checkbox)
+            label.appendChild(span)
+
+            div.appendChild(label)
+            div.appendChild(text)
+
+            return { div, checkbox }
+        }
 
     </script>
 
