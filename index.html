@@ -8,10 +8,8 @@
     <link href="https://api.mapbox.com/mapbox-gl-js/v2.13.0/mapbox-gl.css" rel="stylesheet">
     <script src="https://api.mapbox.com/mapbox-gl-js/v2.13.0/mapbox-gl.js"></script>
     <script src="https://d3js.org/d3.v7.min.js"></script>
-    <!-- add turfjs -->
     <script src="https://cdn.jsdelivr.net/npm/@turf/turf@6/turf.min.js"></script>
     <link href='https://fonts.googleapis.com/css?family=Raleway' rel='stylesheet'>
-
     <style>
         body {
             margin: 0;
@@ -244,9 +242,9 @@
 
         #open-bar-button {
             position: absolute;
-            top: 10px;
-            left: 10px;
-            z-index: 10;
+            top: 15px;
+            left: 15px;
+            z-index: 110;
             cursor: pointer;
             background-color: white;
             border: 1px solid #eee;
@@ -585,12 +583,10 @@
 
         function barOpen() {
             sideBar.style.width = "400px";
-            openBarButton.style.left = "410px";
         }
 
         function barClose() {
             sideBar.style.width = "0";
-            openBarButton.style.left = "10px";
         }
 
         function buildSideBarContent() {
