@@ -32,6 +32,15 @@
             flex-direction: column;
         }
 
+        .side-bar-item {
+            display: flex;
+            flex-direction: column;
+            padding: 10px;
+            border: 1px solid gray;
+            margin: 10px;
+            cursor: pointer;
+        }
+
         .img {
             width: 100%;
             height: 100%;
@@ -121,12 +130,13 @@
         #switchers {
             position: absolute;
             background-color: white;
-            left: 10px;
+            right: 10px;
             z-index: 20000;
-            top: 45px;
+            top: 10px;
             font-size: 12px;
             padding: 5px 12px;
             border-radius: 10px;
+            box-shadow: 0 1px 20px rgba(0, 0, 0, 0.3);
         }
 
         #switchers div {
@@ -202,28 +212,68 @@
             border-radius: 50%;
         }
 
-        @media screen and (max-width: 768px) {
-            .top {
-                flex-direction: column;
-            }
+        #side-bar {
+            height: 100%;
+            width: 0;
+            position: fixed;
+            z-index: 20;
+            top: 0;
+            left: 0;
+            background-color: white;
+            overflow-x: hidden;
+            transition: 0.5s;
+            box-shadow: 0 1px 20px rgba(0, 0, 0, 0.3);
+        }
 
-            .popup-div {
-                width: 90% !important;
-                max-width: 400px !important;
-            }
+        .mapboxgl-ctrl-top-right>.mapboxgl-ctrl.mapboxgl-ctrl-group {
+            margin-top: 55px !important;
+        }
 
-            .buttons>div {
-                padding: 0px 10px;
-            }
+        .top {
+            flex-direction: column;
+        }
+
+        .popup-div {
+            width: 90% !important;
+            max-width: 400px !important;
+        }
+
+        .buttons>div {
+            padding: 0px 10px;
+        }
+
+        #open-bar-button {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            z-index: 10;
+            cursor: pointer;
+            background-color: white;
+            border: 1px solid #eee;
+            border-radius: 5px;
+            padding: 5px 10px;
+            box-shadow: 0 1px 20px rgba(0, 0, 0, 0.3);
+            transition: 0.5s;
         }
     </style>
 </head>
 
 <body>
+
+    <div id="open-bar-button" onclick="toggleBar()">
+        <div>☰</div>
+    </div>
+
+    <div id="side-bar">
+        <div id="side-bar-content"></div>
+    </div>
+
     <div id="switchers"></div>
     <div id="map"></div>
     <script>
-
+        const sideBar = document.getElementById('side-bar');
+        const openBarButton = document.getElementById('open-bar-button');
+        const sideBarContent = document.getElementById('side-bar-content');
         const mainData = {
             pins: [],
             currentPinId: 0
@@ -239,7 +289,19 @@
             projection: 'mercator'
         });
         //add controls
-        map.addControl(new mapboxgl.NavigationControl());
+        // map.addControl(new mapboxgl.NavigationControl());
+        //add controls with top offset 20px 
+        map.addControl(new mapboxgl.NavigationControl(), 'top-right');
+
+
+
+
+
+        let popup = new mapboxgl.Popup({
+            closeOnClick: false,
+            offset: [0, -10],
+            className: "popup-div"
+        });
 
         map.on('load', () => {
 
@@ -267,14 +329,14 @@
                     console.log(result);
                     const pins = result
                         .sort((a, b) => a.Order - b.Order)
-                        .map((item) => {
+                        .map((item, key) => {
                             return {
                                 type: 'Feature',
                                 geometry: {
                                     type: 'Point',
                                     coordinates: [+item.Longitude, +item.Latitude]
                                 },
-                                properties: { ...item }
+                                properties: { ...item, id: key }
                             }
                         });
                     mainData.pins.push(...pins);
@@ -284,6 +346,10 @@
                     }
                     map.getSource("points").setData(featureCollection);
                     // map.fitBounds(turf.bbox(featureCollection), { padding: 100 });
+
+                    buildSideBarContent()
+                    barOpen()
+
                 })
 
             map.addSource('points', {
@@ -337,12 +403,6 @@
                     'circle-stroke-color': '#457b95'
                 },
                 filter: ['!', ['has', 'point_count']],
-            });
-
-            let popup = new mapboxgl.Popup({
-                closeOnClick: false,
-                offset: [0, -10],
-                className: "popup-div"
             });
 
             // Center the map on the coordinates of any clicked circle from the 'circle' layer.
@@ -421,16 +481,26 @@
                     openPopupAt(coords, props, mainData.currentPinId, mainData.pins.length)
                 }
             })
+        });
 
-            function openPopupAt(coordinates, props, curNumber, allNumber) {
+        const mapboxOffSwitcher = buildSwitcher('Satellite view', checked => {
+            const visibility = checked ? 'visible' : 'none'
+            map.setLayoutProperty('satellite', 'visibility', visibility)
+        },
+            false,
+            'off-map'
+        )
+        switchers.append(mapboxOffSwitcher.div)
 
-                mainData.currentPinId = +props['Order'];
-                const image = props['Image Link'] ?
-                    `<div class="left">
+
+        function openPopupAt(coordinates, props, curNumber, allNumber) {
+            mainData.currentPinId = +props['Order'];
+            const image = props['Image Link'] ?
+                `<div class="left">
                         <img class="img" src="${props['Image Link']}" alt="image">
                     </div>` : '';
 
-                const description = `
+            const description = `
                     <div class="main">    
                         <div class="top">
                             ${image}
@@ -452,39 +522,27 @@
                     </div>
                 `
 
-                let coords = coordinates
-                const narrowScreen = map.getContainer().offsetWidth < 600;
-
-                if (narrowScreen) {
-                    const mapHeight = map.getContainer().offsetHeight;
-                    const offsetPx = mapHeight / 2 + 50;
-                    const centerCoord = coordinates;
-                    const centerPx = map.project(centerCoord);
-                    const newPx = { x: centerPx.x, y: centerPx.y - (mapHeight - offsetPx) };
-                    const newCoord = map.unproject(newPx);
-                    coords = newCoord;
-                }
-
-                map.flyTo({
-                    center: coords // move to new coordinates
-                });
-                map.once("idle", () => {
-                    popup.setLngLat(coordinates) // popup at old coordinates
-                        .setHTML(description)
-                        .addTo(map);
-                });
+            let coords = coordinates
+            const narrowScreen = map.getContainer().offsetWidth < 600;
+            if (narrowScreen) {
+                const mapHeight = map.getContainer().offsetHeight;
+                const offsetPx = mapHeight / 2 + 50;
+                const centerCoord = coordinates;
+                const centerPx = map.project(centerCoord);
+                const newPx = { x: centerPx.x, y: centerPx.y - (mapHeight - offsetPx) };
+                const newCoord = map.unproject(newPx);
+                coords = newCoord;
             }
-        });
+            map.flyTo({
+                center: coords // move to new coordinates
+            });
+            map.once("idle", () => {
+                popup.setLngLat(coordinates) // popup at old coordinates
+                    .setHTML(description)
+                    .addTo(map);
+            });
+        }
 
-
-        const mapboxOffSwitcher = buildSwitcher('Satellite view', checked => {
-            const visibility = checked ? 'visible' : 'none'
-            map.setLayoutProperty('satellite', 'visibility', visibility)
-        },
-            false,
-            'off-map'
-        )
-        switchers.append(mapboxOffSwitcher.div)
 
         function buildSwitcher(labelText, action, checked = true, divid) {
             const div = document.createElement('div')
@@ -515,6 +573,66 @@
             div.appendChild(text)
 
             return { div, checkbox }
+        }
+
+        function toggleBar() {
+            if (sideBar.style.width === "0px") {
+                barOpen();
+            } else {
+                barClose();
+            }
+        }
+
+        function barOpen() {
+            sideBar.style.width = "400px";
+            openBarButton.style.left = "410px";
+        }
+
+        function barClose() {
+            sideBar.style.width = "0";
+            openBarButton.style.left = "10px";
+        }
+
+        function buildSideBarContent() {
+
+            if (mainData.pins.length === 0) return;
+            const pins = mainData.pins;
+            const divs = mainData.pins.map(data => {
+
+                const props = data.properties;
+                const image = props['Image Link'] ?
+                    `<div class="left">
+                        <img class="img" src="${props['Image Link']}" alt="image">
+                    </div>` : '';
+
+                const description = `
+                    <div>    
+                            ${image}
+                            <div class="right">
+                                <div class="title">${props['Development']}</div>
+                                <div class="address">${props['Area']}</div>
+                                <div class="address">${props['Address']}</div>
+                                <div class="link">
+                                    <a href="${props['More Info Link']}" target="_blank">More Info</a>
+                                </div>
+                            </div>
+                    </div>
+                `
+
+                const div = document.createElement('div');
+                div.className = 'side-bar-item';
+                div.innerHTML = description;
+                div.addEventListener('click', () => {
+                    //console.log('!!!',);
+                    //openPopupAt(data.geometry.coordinates, props, mainData.currentPinId, mainData.pins.length)
+                    map.flyTo({
+                        zoom: 14,
+                        center: data.geometry.coordinates // move to new coordinates
+
+                    });
+                })
+                sideBarContent.appendChild(div);
+            })
         }
 
     </script>
