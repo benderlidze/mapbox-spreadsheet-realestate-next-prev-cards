@@ -120,10 +120,6 @@
             white-space: nowrap;
         }
 
-        .popup-div {
-            width: 500px !important;
-            max-width: 500px !important;
-        }
 
         #switchers {
             position: absolute;
@@ -227,14 +223,11 @@
             margin-top: 55px !important;
         }
 
-        .top {
-            flex-direction: column;
+        .popup-div {
+            width: 500px !important;
+            max-width: 500px !important;
         }
 
-        .popup-div {
-            width: 90% !important;
-            max-width: 400px !important;
-        }
 
         .buttons>div {
             padding: 0px 10px;
@@ -252,6 +245,33 @@
             padding: 5px 10px;
             box-shadow: 0 1px 20px rgba(0, 0, 0, 0.3);
             transition: 0.5s;
+        }
+
+        .featured {
+            border: 3px solid gold
+        }
+
+        .featured-title {
+            text-transform: uppercase;
+            font-weight: bold;
+            font-size: 1.2rem;
+            color: rgb(255, 187, 0);
+
+        }
+
+        @media screen and (max-width: 768px) {
+            .top {
+                flex-direction: column;
+            }
+
+            .popup-div {
+                width: 90% !important;
+                max-width: 400px !important;
+            }
+
+            .buttons>div {
+                padding: 0px 10px;
+            }
         }
     </style>
 </head>
@@ -492,6 +512,10 @@
 
 
         function openPopupAt(coordinates, props, curNumber, allNumber) {
+
+
+            const featured = props['Featured'] === 'Yes' ? 'featured' : '';
+
             mainData.currentPinId = +props['Order'];
             const image = props['Image Link'] ?
                 `<div class="left">
@@ -499,10 +523,11 @@
                     </div>` : '';
 
             const description = `
-                    <div class="main">    
-                        <div class="top">
+                    <div class="main ">    
+                        <div class="top ">
                             ${image}
-                            <div class="right">
+                            <div class="right ${featured}">
+                                <div class="featured-title">${featured}</div>
                                 <div class="title">${props['Development']}</div>
                                 <div class="address">${props['Area']}</div>
                                 <div class="address">${props['Address']}</div>
@@ -593,18 +618,23 @@
 
             if (mainData.pins.length === 0) return;
             const pins = mainData.pins;
-            const divs = mainData.pins.map(data => {
+            const divs = mainData.pins
+                .sort(d => d.properties['Featured'] === 'Yes' ? -1 : 1)
+                .map(data => {
 
-                const props = data.properties;
-                const image = props['Image Link'] ?
-                    `<div class="left">
+                    const featured = data.properties['Featured'] === 'Yes' ? 'featured' : '';
+
+                    const props = data.properties;
+                    const image = props['Image Link'] ?
+                        `<div class="left">
                         <img class="img" src="${props['Image Link']}" alt="image">
                     </div>` : '';
 
-                const description = `
+                    const description = `
                     <div>    
                             ${image}
                             <div class="right">
+                                <div class="featured-title">${featured}</div>
                                 <div class="title">${props['Development']}</div>
                                 <div class="address">${props['Area']}</div>
                                 <div class="address">${props['Address']}</div>
@@ -615,20 +645,20 @@
                     </div>
                 `
 
-                const div = document.createElement('div');
-                div.className = 'side-bar-item';
-                div.innerHTML = description;
-                div.addEventListener('click', () => {
-                    //console.log('!!!',);
-                    //openPopupAt(data.geometry.coordinates, props, mainData.currentPinId, mainData.pins.length)
-                    map.flyTo({
-                        zoom: 14,
-                        center: data.geometry.coordinates // move to new coordinates
+                    const div = document.createElement('div');
+                    div.className = `side-bar-item ${featured}`;
+                    div.innerHTML = description;
+                    div.addEventListener('click', () => {
+                        //console.log('!!!',);
+                        //openPopupAt(data.geometry.coordinates, props, mainData.currentPinId, mainData.pins.length)
+                        map.flyTo({
+                            zoom: 16.6,
+                            center: data.geometry.coordinates // move to new coordinates
 
-                    });
+                        });
+                    })
+                    sideBarContent.appendChild(div);
                 })
-                sideBarContent.appendChild(div);
-            })
         }
 
     </script>
